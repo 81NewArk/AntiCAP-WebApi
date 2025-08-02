@@ -16,6 +16,8 @@ ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 1*60*24* 60  # 60天
 VALID_USERNAME = None
 VALID_PASSWORD = None
+AUTH_FILE = ".env"
+
 
 
 
@@ -101,6 +103,27 @@ def verify_token(token: str, credentials_exception):
         )
     except jwt.InvalidTokenError:
         raise credentials_exception
+
+
+def save_auth_to_env(username, password, port):
+    with open(AUTH_FILE, "w") as f:
+        f.write(f"USERNAME={username}\n")
+        f.write(f"PASSWORD={password}\n")
+        f.write(f"PORT={port}\n")
+
+
+def load_auth_from_env():
+    env = {}
+    with open(AUTH_FILE, "r") as f:
+        for line in f:
+            if "=" in line:
+                key, val = line.strip().split("=", 1)
+                env[key.strip()] = val.strip()
+    username = env.get("USERNAME")
+    password = env.get("PASSWORD")
+    port = int(env.get("PORT", 6688))
+    return username, password, port
+
 
 async def get_current_user(token: str = Depends(oauth2_scheme)):
     credentials_exception = HTTPException(
@@ -200,10 +223,15 @@ if __name__ == '__main__':
 
 
     SECRET_KEY = os.urandom(32).hex()
-    VALID_USERNAME = input("Please enter username: ")
-    VALID_PASSWORD = input("Please enter password: ")
-    port_input = input("Please enter port (default: 6688): ")
-    port = int(port_input) if port_input else 6688
+
+    if os.path.exists(AUTH_FILE):
+        VALID_USERNAME, VALID_PASSWORD, port = load_auth_from_env()
+    else:
+        VALID_USERNAME = input("Please enter username: ")
+        VALID_PASSWORD = input("Please enter password: ")
+        port_input = input("Please enter port (default: 6688): ")
+        port = int(port_input) if port_input else 6688
+        save_auth_to_env(VALID_USERNAME, VALID_PASSWORD, port)
 
 
     uvicorn.run(app, host="0.0.0.0", port=port, access_log=True)
