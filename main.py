@@ -2,6 +2,7 @@ import os
 import jwt
 import AntiCAP
 import uvicorn
+import logging
 from typing import Optional
 from pydantic import BaseModel
 from fastapi.staticfiles import StaticFiles
@@ -18,16 +19,12 @@ VALID_USERNAME = None
 VALID_PASSWORD = None
 AUTH_FILE = ".env"
 
-
-
-
 description = """
 * 通过Http协议 跨语言调用AntiCAP
 
 <img src="https://img.shields.io/badge/GitHub-ffffff"></a> <a href="https://github.com/81NewArk/AntiCAP-WebApi"> <img src="https://img.shields.io/github/stars/81NewArk/AntiCAP-WebApi?style=social"> 
 
 """
-
 
 app = FastAPI(
     title="AntiCAP - WebApi",
@@ -39,7 +36,6 @@ app = FastAPI(
     }
 )
 
-
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -48,35 +44,35 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-
 class ModelImageIn(BaseModel):
     img_base64: str
-
 
 class ModelOrderImageIn(BaseModel):
     order_img_base64: str
     target_img_base64:str
 
-
 class SliderImageIn(BaseModel):
     target_base64: str
     background_base64:str
-
 
 class CompareImageIn(BaseModel):
     img1_base64: str
     img2_base64: str
 
-
 class DoubleRotateIn(BaseModel):
     inside_base64: str
     outside_base64 : str
 
+class NoStaticFilter(logging.Filter):
+    def filter(self, record):
+        return not any(
+            path in record.getMessage()
+            for path in ["/favicon.ico", "/_next/", "/docs/index.txt"]
+        )
+
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/login")
-
 Atc = AntiCAP.Handler(show_banner=False)
-
 
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
@@ -89,8 +85,6 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     to_encode.update({"exp": expire})
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
-
-
 
 def verify_token(token: str, credentials_exception):
     try:
@@ -108,13 +102,11 @@ def verify_token(token: str, credentials_exception):
     except jwt.InvalidTokenError:
         raise credentials_exception
 
-
 def save_auth_to_env(username, password, port):
     with open(AUTH_FILE, "w") as f:
         f.write(f"USERNAME={username}\n")
         f.write(f"PASSWORD={password}\n")
         f.write(f"PORT={port}\n")
-
 
 def load_auth_from_env():
     env = {}
@@ -128,7 +120,6 @@ def load_auth_from_env():
     port = int(env.get("PORT", 6688))
     return username, password, port
 
-
 async def get_current_user(token: str = Depends(oauth2_scheme)):
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
@@ -136,7 +127,6 @@ async def get_current_user(token: str = Depends(oauth2_scheme)):
         headers={"WWW-Authenticate": "Bearer"},
     )
     return verify_token(token, credentials_exception)
-
 
 
 @app.post("/api/login", summary="登录获取JWT", tags=["公共"])
@@ -157,11 +147,9 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends()):
         "token_type": "bearer"
     }
 
-
 @app.get("/api/tokens/verification", summary="验证JWT", tags=["公共"])
 async def verify_token_endpoint(current_user: str = Depends(get_current_user)):
     return {"username": current_user}
-
 
 @app.post("/api/ocr",summary="返回字符串",tags=["OCR识别"])
 async def ocr(data: ModelImageIn, current_user: str = Depends(get_current_user)):
@@ -203,13 +191,10 @@ async def slider_comparison(data: SliderImageIn, current_user: str = Depends(get
     result = Atc.Slider_Comparison(target_base64=data.target_base64,background_base64=data.background_base64)
     return {"result": result }
 
-
 @app.post("/api/compare/similarity", summary="对比图片相似度", tags=["图片对比，孪生神经经网络模型"])
 async def compare_similarity(data: CompareImageIn, current_user: str = Depends(get_current_user)):
     result = Atc.compare_image_similarity(image1_base64=data.img1_base64, image2_base64=data.img2_base64)
     return {"result": float(result)}
-
-
 
 @app.post("/api/rotate/double/rotate", summary="双图旋转验证码", tags=["旋转验证码，OpenCV算法"])
 async def double_rotate(data: DoubleRotateIn, current_user: str = Depends(get_current_user)):
@@ -230,16 +215,12 @@ if __name__ == '__main__':
 -----------------------------------------------------------
 |                    Version:1.0.6                        |
 -----------------------------------------------------------
-
 免责声明：
 本项目基于MIT开源协议发布，欢迎自由使用、修改和分发，但必须遵守中华人民共和国法律法规。使用本项目即表示您已阅读并同意以下条款：
 1. 合法使用： 不得将本项目用于任何违法、违规或侵犯他人权益的行为，包括但不限于网络攻击、诈骗、绕过身份验证、未经授权的数据抓取等。
 2. 风险自负： 任何因使用本项目而产生的法律责任、技术风险或经济损失，由使用者自行承担，项目作者不承担任何形式的责任。
 3. 禁止滥用： 不得将本项目用于违法牟利、黑产活动或其他不当商业用途。
-使用视为同意上述条款,即"谁使用，谁负责"。如不同意，请立即停止使用并删除本项目。
-
-''')
-
+使用视为同意上述条款,即"谁使用，谁负责"。如不同意，请立即停止使用并删除本项目。''')
 
     SECRET_KEY = os.urandom(32).hex()
 
@@ -253,4 +234,6 @@ if __name__ == '__main__':
         save_auth_to_env(VALID_USERNAME, VALID_PASSWORD, port)
 
 
+    uvicorn_access_logger = logging.getLogger("uvicorn.access")
+    uvicorn_access_logger.addFilter(NoStaticFilter())
     uvicorn.run(app, host="0.0.0.0", port=port, access_log=True)
