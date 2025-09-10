@@ -196,9 +196,9 @@ async def compare_similarity(data: CompareImageIn, current_user: str = Depends(g
     result = Atc.Compare_Image_Similarity(image1_base64=data.img1_base64, image2_base64=data.img2_base64)
     return {"result": float(result)}
 
-@app.post("/api/rotate/single/rotate", summary="双图旋转验证码", tags=["旋转验证码，OpenCV算法"])
+@app.post("/api/rotate/single/rotate", summary="单图旋转验证码", tags=["旋转验证码，模型识别"])
 async def single_rotate(data: ModelImageIn, current_user: str = Depends(get_current_user)):
-    result = Atc.Singl_Rotate(img_base64=data.img_base64)
+    result = Atc.Single_Rotate(img_base64=data.img_base64)
     return {"result": result}
 
 
