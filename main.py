@@ -193,8 +193,14 @@ async def slider_comparison(data: SliderImageIn, current_user: str = Depends(get
 
 @app.post("/api/compare/similarity", summary="对比图片相似度", tags=["图片对比，孪生神经经网络模型"])
 async def compare_similarity(data: CompareImageIn, current_user: str = Depends(get_current_user)):
-    result = Atc.compare_image_similarity(image1_base64=data.img1_base64, image2_base64=data.img2_base64)
+    result = Atc.Compare_Image_Similarity(image1_base64=data.img1_base64, image2_base64=data.img2_base64)
     return {"result": float(result)}
+
+@app.post("/api/rotate/single/rotate", summary="双图旋转验证码", tags=["旋转验证码，OpenCV算法"])
+async def single_rotate(data: ModelImageIn, current_user: str = Depends(get_current_user)):
+    result = Atc.Singl_Rotate(img_base64=data.img_base64)
+    return {"result": result}
+
 
 @app.post("/api/rotate/double/rotate", summary="双图旋转验证码", tags=["旋转验证码，OpenCV算法"])
 async def double_rotate(data: DoubleRotateIn, current_user: str = Depends(get_current_user)):
@@ -213,7 +219,7 @@ if __name__ == '__main__':
 |         Github: https://github.com/81NewArk             |
 |         Author: 81NewArk                                |
 -----------------------------------------------------------
-|                    Version:1.0.6                        |
+|                    Version:1.0.7                        |
 -----------------------------------------------------------
 免责声明：
 本项目基于MIT开源协议发布，欢迎自由使用、修改和分发，但必须遵守中华人民共和国法律法规。使用本项目即表示您已阅读并同意以下条款：
