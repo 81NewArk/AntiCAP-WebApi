@@ -2,6 +2,8 @@
 
 # AntiCAP-WebApi
 
+## Version 1.0.7
+
 </div>
 
 ## 🌍环境说明

@@ -29,7 +29,7 @@ description = """
 app = FastAPI(
     title="AntiCAP - WebApi",
     description=description,
-    version="1.0.6",
+    version="1.0.7",
     swagger_ui_parameters={
         "swagger_js_url": "https://cdn.bootcdn.net/ajax/libs/swagger-ui/5.22.0/swagger-ui-bundle.js",
         "swagger_css_url": "https://cdn.bootcdn.net/ajax/libs/swagger-ui/5.22.0/swagger-ui.css"
