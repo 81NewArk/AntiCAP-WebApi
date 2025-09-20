@@ -64,11 +64,14 @@ class DoubleRotateIn(BaseModel):
     outside_base64 : str
 
 class NoStaticFilter(logging.Filter):
-    def filter(self, record):
-        return not any(
-            path in record.getMessage()
-            for path in ["/favicon.ico", "/_next/", "/docs/index.txt"]
+    def filter(self, record: logging.LogRecord) -> bool:
+        message = record.getMessage()
+        is_static_request = (
+            '"GET /_next/' in message or
+            '"GET /static/' in message or
+            '"GET /favicon.ico' in message
         )
+        return not is_static_request
 
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/login")
