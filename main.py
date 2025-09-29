@@ -69,6 +69,7 @@ class NoStaticFilter(logging.Filter):
         is_static_request = (
             '"GET /_next/' in message or
             '"GET /static/' in message or
+            '"GET /myhome/' in message or
             '"GET /favicon.ico' in message
         )
         return not is_static_request
