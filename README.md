@@ -90,18 +90,16 @@ https://www.bilibili.com/video/BV1xYGgz9ENE
 
 ## ❌ 缺少系统DLL报错解决方案
 
-
-
-```
-大部分服务器或家庭系统缺少模型推理必要的DLL，如果报错，请根据需要安装。
-```
+### 大部分服务器或家庭系统缺少模型推理必要的DLL，如果报错，请根据需要安装。
 
 
 
-| 系统架构     | 下载链接 |
-|:---------| :--------- | 
-| **ARM64**| https://aka.ms/vs/17/release/vc_redist.arm64.exe |
-| **X64**  | https://aka.ms/vs/17/release/vc_redist.x64.exe| 
+
+| 系统架构      | 下载链接 |
+|:----------| :--------- | 
+| **ARM64** | https://aka.ms/vs/17/release/vc_redist.arm64.exe |
+| **X64**   | https://aka.ms/vs/17/release/vc_redist.x64.exe| 
+| **参考地址**  | https://learn.microsoft.com/zh-cn/cpp/windows/latest-supported-vc-redist?view=msvc-170| 
 
 
 
