@@ -98,7 +98,7 @@ https://www.bilibili.com/video/BV1xYGgz9ENE
 | 系统架构      | 下载链接 |
 |:----------| :--------- | 
 | **ARM64** | https://aka.ms/vs/17/release/vc_redist.arm64.exe |
-| **X64**   | https://aka.ms/vs/17/release/vc_redist.x64.exe| 
+| **x64**   | https://aka.ms/vs/17/release/vc_redist.x64.exe| 
 | **参考地址**  | https://learn.microsoft.com/zh-cn/cpp/windows/latest-supported-vc-redist?view=msvc-170| 
 
 <br>
