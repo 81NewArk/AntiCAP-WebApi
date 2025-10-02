@@ -81,6 +81,29 @@ git clone https://github.com/81NewArk/AntiCAP-WebApi
 
 https://www.bilibili.com/video/BV1xYGgz9ENE
 ```
+
+<div align="center">
+
+## ❌ 缺少系统DLL报错解决方案
+
+</div>
+
+```
+https://learn.microsoft.com/zh-cn/cpp/windows/latest-supported-vc-redist?view=msvc-170
+```
+
+<div align="center">
+
+
+| 系统架构     | 下载链接 |
+|:---------| :--------- | 
+| **ARM64**| https://aka.ms/vs/17/release/vc_redist.arm64.exe |
+| **X64**  | https://aka.ms/vs/17/release/vc_redist.x64.exe| 
+
+
+</div>
+
+
 # 🐧 QQ交流群
 
 <br>
