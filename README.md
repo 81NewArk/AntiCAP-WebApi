@@ -82,17 +82,16 @@ git clone https://github.com/81NewArk/AntiCAP-WebApi
 https://www.bilibili.com/video/BV1xYGgz9ENE
 ```
 
-<div align="center">
+
 
 ## ❌ 缺少系统DLL报错解决方案
 
-</div>
+
 
 ```
-https://learn.microsoft.com/zh-cn/cpp/windows/latest-supported-vc-redist?view=msvc-170
+大部分服务器或家庭系统缺少模型推理必要的DLL，如果报错，请根据需要安装。
 ```
 
-<div align="center">
 
 
 | 系统架构     | 下载链接 |
@@ -101,7 +100,7 @@ https://learn.microsoft.com/zh-cn/cpp/windows/latest-supported-vc-redist?view=ms
 | **X64**  | https://aka.ms/vs/17/release/vc_redist.x64.exe| 
 
 
-</div>
+
 
 
 # 🐧 QQ交流群
