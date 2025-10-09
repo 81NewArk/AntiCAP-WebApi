@@ -1,4 +1,4 @@
-AntiCAP==3.2.6
+AntiCAP==3.2.7
 fastapi==0.111.0
 numpy==1.26.4
 pydantic==2.7.1
