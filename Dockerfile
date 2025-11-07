@@ -4,6 +4,7 @@ WORKDIR /app
 
 # 安装git并克隆仓库
 RUN apt-get update && apt-get install -y \
+    git \
     libgl1 \
     libglib2.0-0 \
     libsm6 \
@@ -31,6 +32,7 @@ exec python main.py' > /entrypoint.sh && \
 EXPOSE 6688
 
 ENTRYPOINT ["/entrypoint.sh"]
+
 
 
 
