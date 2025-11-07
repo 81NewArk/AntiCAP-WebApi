@@ -1,11 +1,10 @@
-FROM python:3.9-slim
+FROM python:3.10.6-slim
 
 WORKDIR /app
 
 # 安装git并克隆仓库
 RUN apt-get update && apt-get install -y git && \
-    git clone https://github.com/81NewArk/AntiCAP-WebApi . && \
-    rm -rf /var/lib/apt/lists/*
+    git clone https://github.com/81NewArk/AntiCAP-WebApi .     
 
 # 创建静态文件目录（如果不存在）
 RUN mkdir -p static
@@ -26,3 +25,4 @@ exec python main.py' > /entrypoint.sh && \
 EXPOSE 6688
 
 ENTRYPOINT ["/entrypoint.sh"]
+
