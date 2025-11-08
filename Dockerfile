@@ -10,8 +10,7 @@ RUN apt-get update && apt-get install -y \
     libsm6 \
     libxext6 \
     libxrender-dev \
-    libgl1-mesa-glx && \
-    rm -rf /var/lib/apt/lists/*
+    libgl1-mesa-glx
 
 # 克隆仓库
 RUN git clone https://github.com/81NewArk/AntiCAP-WebApi . 
@@ -19,19 +18,28 @@ RUN git clone https://github.com/81NewArk/AntiCAP-WebApi .
 # 创建静态文件目录
 RUN mkdir -p static
 
-# 在构建时创建默认 .env 文件
-RUN echo "USERNAME=admin" > .env && \
-    echo "PASSWORD=admin" >> .env && \
-    echo "PORT=6688" >> .env
-
 # 安装 Python 依赖
 RUN pip install --no-cache-dir -r requirements.txt -i https://pypi.tuna.tsinghua.edu.cn/simple
 
-# 设置默认环境变量（可选）
-ENV USERNAME=admin
-ENV PASSWORD=defaultpass123
-ENV PORT=6688
+# 创建启动脚本
+RUN echo '#!/bin/bash\n\
+# 如果环境变量存在，则生成新的 .env 文件\n\
+if [ -n "$USERNAME" ] || [ -n "$PASSWORD" ] || [ -n "$PORT" ]; then\n\
+    echo "USERNAME=${USERNAME:-admin}" > .env\n\
+    echo "PASSWORD=${PASSWORD:-admin123}" >> .env\n\
+    echo "PORT=${PORT:-6688}" >> .env\n\
+    echo "使用环境变量生成新配置"\n\
+elif [ ! -f .env ]; then\n\
+    echo "USERNAME=admin" > .env\n\
+    echo "PASSWORD=admin123" >> .env\n\
+    echo "PORT=6688" >> .env\n\
+    echo "使用默认配置"\n\
+fi\n\
+\n\
+# 启动应用\n\
+exec python main.py' > /entrypoint.sh && \
+    chmod +x /entrypoint.sh
 
 EXPOSE 6688
 
-CMD ["python", "main.py"]
+ENTRYPOINT ["/entrypoint.sh"]
