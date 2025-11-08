@@ -10,8 +10,7 @@ RUN apt-get update && apt-get install -y \
     libsm6 \
     libxext6 \
     libxrender-dev \
-    libgl1-mesa-glx \
-    && rm -rf /var/lib/apt/lists/*
+    libgl1-mesa-glx 
 
 # 先克隆仓库到临时目录，然后复制文件
 RUN git clone https://github.com/81NewArk/AntiCAP-WebApi /tmp/source \
@@ -70,3 +69,4 @@ RUN chmod +x /entrypoint.sh
 EXPOSE 6688
 
 ENTRYPOINT ["/entrypoint.sh"]
+
