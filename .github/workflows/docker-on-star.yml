@@ -5,7 +5,7 @@ on:
     types: [started]  # 当用户star仓库时触发
 
 env:
-  IMAGE_NAME: anticap-webapi
+  IMAGE_NAME: anticap
   DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
 
 jobs:
