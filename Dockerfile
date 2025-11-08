@@ -62,4 +62,5 @@ RUN apt-get update && apt-get install -y dos2unix && dos2unix /app/start.sh
 
 EXPOSE 6688
 
-CMD ["/app/start.sh"]
+CMD ["/bin/bash", "/app/start.sh"]
+
