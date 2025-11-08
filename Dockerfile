@@ -2,7 +2,7 @@ FROM python:3.10.6-slim
 
 WORKDIR /app
 
-# 安装git并克隆仓库
+# 安装系统依赖
 RUN apt-get update && apt-get install -y \
     git \
     libgl1 \
@@ -10,29 +10,28 @@ RUN apt-get update && apt-get install -y \
     libsm6 \
     libxext6 \
     libxrender-dev \
-    libgl1-mesa-glx && \ 
-    git clone https://github.com/81NewArk/AntiCAP-WebApi .     
+    libgl1-mesa-glx && \
+    rm -rf /var/lib/apt/lists/*
 
-# 创建静态文件目录（如果不存在）
+# 克隆仓库
+RUN git clone https://github.com/81NewArk/AntiCAP-WebApi . 
+
+# 创建静态文件目录
 RUN mkdir -p static
 
-# 安装依赖
+# 在构建时创建默认 .env 文件
+RUN echo "USERNAME=admin" > .env && \
+    echo "PASSWORD=admin" >> .env && \
+    echo "PORT=6688" >> .env
+
+# 安装 Python 依赖
 RUN pip install --no-cache-dir -r requirements.txt -i https://pypi.tuna.tsinghua.edu.cn/simple
 
-# 创建入口脚本
-RUN echo '#!/bin/bash\n\
-if [ ! -f .env ] || [ -n "$USERNAME" ] || [ -n "$PASSWORD" ] || [ -n "$PORT" ]; then\n\
-  echo "USERNAME=${USERNAME:-admin}" > .env\n\
-  echo "PASSWORD=${PASSWORD:-defaultpass123}" >> .env\n\
-  echo "PORT=${PORT:-6688}" >> .env\n\
-fi\n\
-exec python main.py' > /entrypoint.sh && \
-    chmod +x /entrypoint.sh
+# 设置默认环境变量（可选）
+ENV USERNAME=admin
+ENV PASSWORD=defaultpass123
+ENV PORT=6688
 
 EXPOSE 6688
 
-ENTRYPOINT ["/entrypoint.sh"]
-
-
-
-
+CMD ["python", "main.py"]
