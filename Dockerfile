@@ -10,19 +10,13 @@ RUN apt-get update && apt-get install -y \
     libsm6 \
     libxext6 \
     libxrender-dev \
-    libgl1-mesa-glx 
+    libgl1-mesa-glx \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
 
-# 先克隆仓库到临时目录，然后复制文件
-RUN git clone https://github.com/81NewArk/AntiCAP-WebApi /tmp/source \
-    && cp -r /tmp/source/* . \
-    && cp -r /tmp/source/.* . 2>/dev/null || true \
-    && rm -rf /tmp/source
-
-# 或者直接检查文件是否存在
-RUN if [ ! -f "main.py" ]; then \
-        echo "错误：main.py 文件不存在，当前目录内容：" && ls -la; \
-        exit 1; \
-    fi
+# 克隆仓库并检查
+RUN git clone https://github.com/81NewArk/AntiCAP-WebApi . \
+    && echo "仓库内容：" && ls -la
 
 # 创建静态文件目录
 RUN mkdir -p static
@@ -30,43 +24,36 @@ RUN mkdir -p static
 # 安装 Python 依赖
 RUN pip install --no-cache-dir -r requirements.txt -i https://pypi.tuna.tsinghua.edu.cn/simple
 
-# 创建启动脚本
-RUN cat > /entrypoint.sh << 'EOF'
+# 创建启动脚本在当前目录
+RUN cat > /app/start.sh << 'EOF'
 #!/bin/bash
-set -e
-
 cd /app
 
-echo "当前工作目录: $(pwd)"
-echo "目录内容:"
+echo "=== 环境检查 ==="
+echo "工作目录: $(pwd)"
+echo "文件列表:"
 ls -la
 
-# 如果环境变量存在，则生成新的 .env 文件
+# 配置处理
 if [ -n "$USERNAME" ] || [ -n "$PASSWORD" ] || [ -n "$PORT" ]; then
-    echo "使用环境变量生成新配置"
-    cat > .env << EOL
-USERNAME=${USERNAME:-admin}
-PASSWORD=${PASSWORD:-admin123}
-PORT=${PORT:-6688}
-EOL
+    echo "生成环境变量配置"
+    echo "USERNAME=${USERNAME:-admin}" > .env
+    echo "PASSWORD=${PASSWORD:-admin123}" >> .env
+    echo "PORT=${PORT:-6688}" >> .env
 elif [ ! -f .env ]; then
-    echo "使用默认配置"
-    cat > .env << EOL
-USERNAME=admin
-PASSWORD=admin123
-PORT=6688
-EOL
-else
-    echo "使用现有的 .env 文件"
+    echo "生成默认配置"
+    echo "USERNAME=admin" > .env
+    echo "PASSWORD=admin123" >> .env
+    echo "PORT=6688" >> .env
 fi
 
-echo "启动 AntiCAP WebApi 服务..."
+echo "=== 启动应用 ==="
 exec python main.py
 EOF
 
-RUN chmod +x /entrypoint.sh
+RUN chmod +x /app/start.sh
 
 EXPOSE 6688
 
-ENTRYPOINT ["/entrypoint.sh"]
-
+# 使用绝对路径
+CMD ["/app/start.sh"]
