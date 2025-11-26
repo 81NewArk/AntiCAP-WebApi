@@ -2,7 +2,7 @@
 
 # AntiCAP-WebApi
 
-## Version 1.0.7
+## Version 1.0.8
 
 </div>
 
@@ -37,9 +37,7 @@ pip install -r requirements.txt -i https://pypi.tuna.tsinghua.edu.cn/simple
 # 4.运行项目
 python main.py
 
-# 5.输入账号密码和端口号，端口号直接回车默认为6688
-# 首次运行要求输入账号密码 然后会把账号密码保存到当前目录下.env文件中 
-# 账号密码可在.env文件中修改 修改以后重新运行项目即可
+# 5.默认端口为6688，初始化账号密码均为admin
 
 # 6.访问Web主页和开发者文档：
 http://127.0.0.1:6688/
@@ -63,7 +61,7 @@ git clone https://github.com/81NewArk/AntiCAP-WebApi
 
 # 2.根据系统 选择运行 Run-Windows.bat或 Run-Linux.sh 会自动安装所需依赖并运行项目
 
-# 3.输如账号 密码和端口号，端口号直接回车默认为6688
+# 3.默认端口为6688 初始化账号密码均为admin
 
 ```
 
