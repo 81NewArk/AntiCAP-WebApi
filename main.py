@@ -94,10 +94,11 @@ class NoStaticFilter(logging.Filter):
                 '"GET /static/' in message or
                 '"GET /myhome/' in message or
                 '"GET /favicon.ico' in message or
-                '"GET / admin / index.txt?' in message or
+                '"GET /admin/index.txt?' in message or
                 '"GET /register/index.txt?' in message or
                 '"GET /login/index.txt?_rsc' in message or
-                '"GET /index.txt?' in message
+                '"GET /index.txt?' in message or
+                '"GET /register/' in message
         )
         return not is_static_request
 
