@@ -13,7 +13,7 @@ from fastapi import FastAPI, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 from passlib.context import CryptContext
-from database import SessionLocal, engine, init_db, User, RegistrationCode, UserRole, get_db
+from database import  init_db, User, RegistrationCode, UserRole, get_db
 
 # Initialize Database
 init_db()
@@ -37,8 +37,8 @@ app = FastAPI(
     description=description,
     version="1.0.8",
     swagger_ui_parameters={
-        "swagger_js_url": "https://cdn.bootcdn.net/ajax/libs/swagger-ui/5.22.0/swagger-ui-bundle.js",
-        "swagger_css_url": "https://cdn.bootcdn.net/ajax/libs/swagger-ui/5.22.0/swagger-ui.css"
+        "swagger_js_url": "https://cdn.staticfile.net/swagger-ui/5.18.2/swagger-ui-bundle.js",
+        "swagger_css_url": "https://cdn.staticfile.net/swagger-ui/5.18.2/swagger-ui.css"
     }
 )
 
