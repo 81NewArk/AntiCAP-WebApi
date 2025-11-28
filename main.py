@@ -9,14 +9,16 @@ from pydantic import BaseModel
 from fastapi.staticfiles import StaticFiles
 from datetime import datetime, timedelta, timezone
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi import FastAPI, Depends, HTTPException, status
+from fastapi import FastAPI, Depends, HTTPException, status, Request
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 from passlib.context import CryptContext
-from database import  init_db, User, RegistrationCode, UserRole, get_db
+from database import  init_db, User, RegistrationCode, UserRole, get_db, EndpointCost
 
 # Initialize Database
 init_db()
+
+
 
 # Password Hashing
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -84,6 +86,18 @@ class UserRegister(BaseModel):
 class UserUpdate(BaseModel):
     password: Optional[str] = None
     balance: Optional[int] = None
+
+
+class EndpointCostIn(BaseModel):
+    path: str
+    cost: int
+    description: Optional[str] = None
+
+
+class GenerateCodeIn(BaseModel):
+    points: int = 1000
+
+
 
 
 class NoStaticFilter(logging.Filter):
@@ -163,14 +177,19 @@ async def get_current_admin_user(current_user: User = Depends(get_current_user))
     return current_user
 
 
-async def check_balance_and_deduct(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+async def check_balance_and_deduct(request: Request, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     if current_user.role == UserRole.ADMIN:
         return current_user  # Admins don't consume credits
 
-    if current_user.balance < 1:
+    # Determine cost
+    path = request.url.path
+    cost_entry = db.query(EndpointCost).filter(EndpointCost.path == path).first()
+    cost = cost_entry.cost if cost_entry else 1
+
+    if current_user.balance < cost:
         raise HTTPException(status_code=402, detail="Insufficient balance")
 
-    current_user.balance -= 1
+    current_user.balance -= cost
     db.commit()
     return current_user
 
@@ -189,7 +208,7 @@ async def register(user_in: UserRegister, db: Session = Depends(get_db)):
 
     # Create user
     hashed_password = get_password_hash(user_in.password)
-    new_user = User(username=user_in.username, hashed_password=hashed_password, role=UserRole.USER)
+    new_user = User(username=user_in.username, hashed_password=hashed_password, role=UserRole.USER, balance=code.points)
     db.add(new_user)
 
     # Mark code as used
@@ -222,12 +241,12 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = 
 
 
 @app.post("/api/admin/generate_code", summary="生成注册码", tags=["管理员"])
-async def generate_code(current_user: User = Depends(get_current_admin_user), db: Session = Depends(get_db)):
+async def generate_code(data: GenerateCodeIn, current_user: User = Depends(get_current_admin_user), db: Session = Depends(get_db)):
     code_str = str(uuid.uuid4())
-    new_code = RegistrationCode(code=code_str, created_by=current_user.id)
+    new_code = RegistrationCode(code=code_str, created_by=current_user.id, points=data.points)
     db.add(new_code)
     db.commit()
-    return {"registration_code": code_str}
+    return {"registration_code": code_str, "points": data.points}
 
 
 @app.get("/api/admin/regcodes", summary="获取注册码列表", tags=["管理员"])
@@ -274,6 +293,28 @@ async def update_user(username: str, user_update: UserUpdate, current_user: User
 
     db.commit()
     return {"message": "User updated successfully", "username": user.username, "balance": user.balance}
+
+
+@app.get("/api/admin/costs", summary="获取所有接口扣点配置", tags=["管理员"])
+async def get_endpoint_costs(current_user: User = Depends(get_current_admin_user), db: Session = Depends(get_db)):
+    costs = db.query(EndpointCost).all()
+    return costs
+
+
+@app.post("/api/admin/costs", summary="设置接口扣点", tags=["管理员"])
+async def set_endpoint_cost(cost_in: EndpointCostIn, current_user: User = Depends(get_current_admin_user), db: Session = Depends(get_db)):
+    cost_entry = db.query(EndpointCost).filter(EndpointCost.path == cost_in.path).first()
+    if cost_entry:
+        cost_entry.cost = cost_in.cost
+        cost_entry.description = cost_in.description
+    else:
+        cost_entry = EndpointCost(path=cost_in.path, cost=cost_in.cost, description=cost_in.description)
+        db.add(cost_entry)
+    
+    db.commit()
+    db.refresh(cost_entry)
+    return cost_entry
+
 
 
 @app.get("/api/tokens/verification", summary="验证JWT", tags=["公共"])

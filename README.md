@@ -2,7 +2,7 @@
 
 # AntiCAP-WebApi
 
-## Version 1.0.8
+## Version 1.0.9
 
 </div>
 
