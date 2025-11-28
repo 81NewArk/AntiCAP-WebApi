@@ -35,8 +35,8 @@ description = """
 
 """
 
-app = FastAPI(
-    title="AntiCAP - WebApi",
+app: FastAPI = FastAPI(
+    title="AntiCAP-WebApi",
     description=description,
     version="1.0.9",
     docs_url=None
@@ -48,8 +48,8 @@ async def custom_swagger_ui_html():
         openapi_url=app.openapi_url,
         title=app.title + " - 开发者文档",
         oauth2_redirect_url=app.swagger_ui_oauth2_redirect_url,
-        swagger_js_url="https://cdn.bootcdn.net/ajax/libs/swagger-ui/5.29.0/swagger-ui-bundle.js",
-        swagger_css_url="https://cdn.bootcdn.net/ajax/libs/swagger-ui/5.29.0/swagger-ui.css",
+        swagger_js_url="/swagger/swagger-ui-bundle.js",
+        swagger_css_url="/swagger/swagger-ui.css",
     )
 
 app.add_middleware(
@@ -120,7 +120,8 @@ class NoStaticFilter(logging.Filter):
                 '"GET /register/index.txt?' in message or
                 '"GET /login/index.txt?_rsc' in message or
                 '"GET /index.txt?' in message or
-                '"GET /register/' in message
+                '"GET /register/' in message or
+                '"GET /swagger/' in message
         )
         return not is_static_request
 

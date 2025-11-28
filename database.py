@@ -20,30 +20,30 @@ class UserRole(str, enum.Enum):
 class User(Base):
     __tablename__ = "users"
 
-    id = Column(Integer, primary_key=True, index=True)
-    username = Column(String, unique=True, index=True)
-    hashed_password = Column(String)
-    role = Column(String, default=UserRole.USER)
-    balance = Column(Integer, default=1000)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    id: int = Column(Integer, primary_key=True, index=True)
+    username: str = Column(String, unique=True, index=True)
+    hashed_password: str = Column(String)
+    role: str = Column(String, default=UserRole.USER)
+    balance: int = Column(Integer, default=1000)
+    created_at: datetime = Column(DateTime, default=datetime.utcnow)
 
 class RegistrationCode(Base):
     __tablename__ = "registration_codes"
 
-    id = Column(Integer, primary_key=True, index=True)
-    code = Column(String, unique=True, index=True)
-    is_used = Column(Boolean, default=False)
-    points = Column(Integer, default=1000)
-    created_by = Column(Integer) # Admin User ID
-    created_at = Column(DateTime, default=datetime.utcnow)
+    id: int = Column(Integer, primary_key=True, index=True)
+    code: str = Column(String, unique=True, index=True)
+    is_used: bool = Column(Boolean, default=False)
+    points: int = Column(Integer, default=1000)
+    created_by: int = Column(Integer) # Admin User ID
+    created_at: datetime = Column(DateTime, default=datetime.utcnow)
 
 class EndpointCost(Base):
     __tablename__ = "endpoint_costs"
 
-    id = Column(Integer, primary_key=True, index=True)
-    path = Column(String, unique=True, index=True)
-    cost = Column(Integer, default=1)
-    description = Column(String, nullable=True)
+    id: int = Column(Integer, primary_key=True, index=True)
+    path: str = Column(String, unique=True, index=True)
+    cost: int = Column(Integer, default=1)
+    description: str = Column(String, nullable=True)
 
 def init_db():
     Base.metadata.create_all(bind=engine)
