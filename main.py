@@ -10,6 +10,7 @@ from fastapi.staticfiles import StaticFiles
 from datetime import datetime, timedelta, timezone
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi import FastAPI, Depends, HTTPException, status, Request
+from fastapi.openapi.docs import get_swagger_ui_html
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 from passlib.context import CryptContext
@@ -38,11 +39,18 @@ app = FastAPI(
     title="AntiCAP - WebApi",
     description=description,
     version="1.0.9",
-    swagger_ui_parameters={
-        "swagger_js_url": "https://cdn.staticfile.net/swagger-ui/5.18.2/swagger-ui-bundle.js",
-        "swagger_css_url": "https://cdn.staticfile.net/swagger-ui/5.18.2/swagger-ui.css"
-    }
+    docs_url=None
 )
+
+@app.get("/docs", include_in_schema=False)
+async def custom_swagger_ui_html():
+    return get_swagger_ui_html(
+        openapi_url=app.openapi_url,
+        title=app.title + " - Swagger UI",
+        oauth2_redirect_url=app.swagger_ui_oauth2_redirect_url,
+        swagger_js_url="https://cdn.bootcdn.net/ajax/libs/swagger-ui/5.29.0/swagger-ui-bundle.js",
+        swagger_css_url="https://cdn.bootcdn.net/ajax/libs/swagger-ui/5.29.0/swagger-ui.css",
+    )
 
 app.add_middleware(
     CORSMiddleware,
