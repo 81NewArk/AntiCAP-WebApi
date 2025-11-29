@@ -2,7 +2,7 @@ AntiCAP==3.3.2
 fastapi
 numpy==1.26.4
 pydantic==2.7.1
-PyJWT==2.9.0
+PyJWT
 python-multipart==0.0.9
 uvicorn
 sqlalchemy
