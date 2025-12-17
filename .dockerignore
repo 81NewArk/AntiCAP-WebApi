@@ -1,0 +1,13 @@
+.git
+.gitignore
+README.md
+Dockerfile
+.dockerignore
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.sh
+*.bat
+*.log
