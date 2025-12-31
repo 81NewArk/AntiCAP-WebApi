@@ -37,7 +37,7 @@ pip install -r requirements.txt -i https://pypi.tuna.tsinghua.edu.cn/simple
 # 4.运行项目
 python main.py
 
-# 5.默认端口为6688，初始化账号密码均为admin
+# 5.默认端口为6688，初始化账号admin密码admin123
 
 # 6.访问Web主页和开发者文档：
 http://127.0.0.1:6688/

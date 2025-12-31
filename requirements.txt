@@ -7,4 +7,4 @@ python-multipart==0.0.9
 uvicorn
 sqlalchemy
 passlib[bcrypt]
-bcrypt==3.2.0
+aiosqlite
