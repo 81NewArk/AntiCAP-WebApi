@@ -14,7 +14,6 @@ from fastapi import FastAPI, Depends, HTTPException, status, Request
 from fastapi.concurrency import run_in_threadpool
 from fastapi.openapi.docs import get_swagger_ui_html
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
-from sqlalchemy.orm import Session
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from passlib.context import CryptContext
@@ -443,6 +442,7 @@ app.mount("/", StaticFiles(directory="static", html=True), name="static")
 
 if __name__ == '__main__':
     print("""
+
     +--------------------------------------------------------------------------------------+
     |                         Github: https://github.com/81NewArk                          |
     |                                Version: 1.1.2                                        |
@@ -455,7 +455,8 @@ if __name__ == '__main__':
     |  3.禁止滥用:不得将本项目用于黑产或其他不当商业用途                                       |
     |  使用视为同意上述条款,如不同意请立即停止使用并删除本项目。                                |
     +--------------------------------------------------------------------------------------+
-    """)
+    
+""")
 
     uvicorn_access_logger = logging.getLogger("uvicorn.access")
     uvicorn_access_logger.addFilter(NoStaticFilter())
