@@ -36,6 +36,9 @@ user_locks = KeyedLock()
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     await init_db()
+    async for db in get_db():
+        await ensure_admin_user(db)
+        break
     yield
 
 
@@ -44,7 +47,18 @@ async def lifespan(app: FastAPI):
 # Password Hashing
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
-SECRET_KEY = os.urandom(32).hex()
+def get_secret_key():
+    key_file = "secret.key"
+    if os.path.exists(key_file):
+        with open(key_file, "r") as f:
+            return f.read().strip()
+    else:
+        new_key = os.urandom(32).hex()
+        with open(key_file, "w") as f:
+            f.write(new_key)
+        return new_key
+
+SECRET_KEY = get_secret_key()
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 1 * 60 * 24 * 60  # 60 days
 
@@ -157,6 +171,32 @@ def verify_password(plain_password, hashed_password):
 
 def get_password_hash(password):
     return pwd_context.hash(password)
+
+
+async def ensure_admin_user(db: AsyncSession):
+    """确保 admin 账号存在且密码为 admin"""
+    admin_username = "admin"
+    admin_password = "admin"
+    
+    result = await db.execute(select(User).filter(User.username == admin_username))
+    admin_user = result.scalars().first()
+    
+    if not admin_user:
+        hashed_password = get_password_hash(admin_password)
+        new_admin = User(
+            username=admin_username, 
+            hashed_password=hashed_password, 
+            role=UserRole.ADMIN, 
+            balance=1000000
+        )
+        db.add(new_admin)
+        await db.commit()
+        print(f"Default admin user created with password: {admin_password}")
+    else:
+        # 自动更新密码为默认的 admin (根据用户需求)
+        admin_user.hashed_password = get_password_hash(admin_password)
+        await db.commit()
+        print(f"Admin password has been reset to: {admin_password}")
 
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
