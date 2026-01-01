@@ -6,5 +6,6 @@ PyJWT>=2.8.0
 python-multipart==0.0.9
 uvicorn
 sqlalchemy
-passlib[bcrypt]
+passlib
+bcrypt==3.2.0
 aiosqlite
