@@ -20,10 +20,20 @@ ENV PATH="/opt/venv/bin:$PATH"
 # 1) 先钉住 numpy，避免后续被 torchvision 拉到 2.x 再降级导致 ABI 告警
 RUN pip install numpy==1.26.4
 
-# 2) 关键优化：显式安装 CPU 版 torch/torchvision。
-#    若走默认 PyPI，ultralytics 会拉入 CUDA 版 torch + nvidia-* 系列 wheel，镜像会膨胀 4GB+
-RUN pip install --index-url https://download.pytorch.org/whl/cpu \
-      torch==2.4.1 torchvision==0.19.1
+# 2) 关键优化：显式安装 CPU 版 torch/torchvision，避免 ultralytics 拉入 CUDA 版
+#    - amd64：必须走 PyTorch 的 cpu 专用索引，否则会带上 nvidia-* 全套 wheel（+4GB）
+#    - arm64：PyPI 上的 aarch64 wheel 本身就是纯 CPU 版（nvidia/triton 依赖被
+#      `platform_machine == "x86_64"` 标记排除），直接用 PyPI 即可
+ARG TARGETARCH
+RUN set -eux; \
+    arch="${TARGETARCH:-$(dpkg --print-architecture)}"; \
+    if [ "$arch" = "arm64" ]; then \
+      pip install torch==2.4.1 torchvision==0.19.1; \
+    else \
+      pip install --index-url https://download.pytorch.org/whl/cpu \
+        torch==2.4.1 torchvision==0.19.1; \
+    fi; \
+    ! pip list 2>/dev/null | grep -qi '^nvidia-'
 
 # 3) 业务依赖
 COPY requirements.txt ./

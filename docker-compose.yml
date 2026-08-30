@@ -1,0 +1,25 @@
+services:
+  anticap:
+    # 直接拉 GHCR 上 CI 构建好的镜像：docker compose up -d
+    image: ghcr.io/ownercm/anticap-webapi:latest
+    # 想本地构建时：docker compose build（会把结果打成上面的 image tag）
+    container_name: anticap-webapi
+    restart: unless-stopped
+    ports:
+      - "6688:6688"
+    volumes:
+      # 持久化 app.db 与 secret.key（容器内由 entrypoint 软链到 /app）
+      # 不挂这个卷的话，重启后账号数据丢失、JWT 密钥重置导致已发 token 全部失效
+      - anticap-data:/data
+    environment:
+      TZ: Asia/Shanghai
+    security_opt:
+      - no-new-privileges:true
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+volumes:
+  anticap-data:
