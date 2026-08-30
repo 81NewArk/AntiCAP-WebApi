@@ -1,0 +1,35 @@
+.git
+.gitignore
+.github
+
+# 本地数据与密钥，绝不能打进镜像（app.db 含 admin 凭据）
+app.db
+*.db
+*.sqlite3
+secret.key
+
+# 本地环境
+.venv
+venv
+env
+__pycache__
+*.py[cod]
+*.egg-info
+.pytest_cache
+.mypy_cache
+
+# 平台脚本 / 文档，容器内不需要
+Run-Linux.sh
+Run-Windows.bat
+README.md
+LICENSE
+
+# 编辑器 / 系统
+.idea
+.vscode
+.DS_Store
+
+# Docker 自身
+Dockerfile
+.dockerignore
+docker-compose*.yml
