@@ -9,7 +9,11 @@ SQLALCHEMY_DATABASE_URL = "sqlite+aiosqlite:///./app.db"
 engine = create_async_engine(
     SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False}
 )
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine, class_=AsyncSession)
+# expire_on_commit=False 必须显式关闭：默认 True 时 commit() 会把所有 ORM 实例
+# 属性标记为过期，之后再读属性会触发一次同步 refresh 查询，在 async session 下
+# 直接抛 MissingGreenlet。异步场景的标准做法就是关掉它。
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine, class_=AsyncSession,
+                            expire_on_commit=False)
 
 Base = declarative_base()
 

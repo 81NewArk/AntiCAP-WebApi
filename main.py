@@ -5,6 +5,7 @@ import uvicorn
 import logging
 import uuid
 import asyncio
+import secrets
 from typing import Optional, Dict
 from pydantic import BaseModel
 from fastapi.staticfiles import StaticFiles
@@ -14,31 +15,53 @@ from fastapi import FastAPI, Depends, HTTPException, status, Request
 from fastapi.concurrency import run_in_threadpool
 from fastapi.openapi.docs import get_swagger_ui_html
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
+from sqlalchemy import update
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from passlib.context import CryptContext
 from contextlib import asynccontextmanager
-from database import init_db, User, RegistrationCode, UserRole, get_db, EndpointCost
+from database import init_db, User, RegistrationCode, UserRole, get_db, EndpointCost, SessionLocal
 
 class KeyedLock:
+    """按 key 串行化的锁池。
+
+    用引用计数管理生命周期：最后一个使用者退出后立即回收，
+    避免字典随用户数只增不减。不能简单地"清理未被持有的锁"——
+    那样会把正在等待获取的锁误删，导致两个请求同时进入临界区。
+    """
+
     def __init__(self):
-        self.locks: Dict[str, asyncio.Lock] = {}
+        # key -> [lock, waiter_count]
+        self.locks: Dict[str, list] = {}
         self._global_lock = asyncio.Lock()
 
-    async def __call__(self, key: str):
+    @asynccontextmanager
+    async def acquire(self, key: str):
         async with self._global_lock:
-            if key not in self.locks:
-                self.locks[key] = asyncio.Lock()
-            return self.locks[key]
+            entry = self.locks.get(key)
+            if entry is None:
+                entry = [asyncio.Lock(), 0]
+                self.locks[key] = entry
+            entry[1] += 1
+        try:
+            async with entry[0]:
+                yield
+        finally:
+            async with self._global_lock:
+                entry[1] -= 1
+                if entry[1] <= 0:
+                    self.locks.pop(key, None)
 
 user_locks = KeyedLock()
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     await init_db()
-    async for db in get_db():
+    # 直接用 SessionLocal，不要 `async for ... break` 去中断 get_db 这个
+    # 异步生成器——那样 session 不走正常关闭路径
+    async with SessionLocal() as db:
         await ensure_admin_user(db)
-        break
     yield
 
 
@@ -87,13 +110,24 @@ async def custom_swagger_ui_html():
         swagger_css_url="/swagger/swagger-ui.css",
     )
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+# CORS 默认关闭。内置前端由下方 StaticFiles 同源挂载，本身不需要 CORS。
+# 需要其他域名调用时，用逗号分隔设置白名单，例如：
+#   CORS_ALLOW_ORIGINS=https://a.example.com,https://b.example.com
+# 原来的 allow_origins=["*"] 配 allow_credentials=True 会让 Starlette 回显
+# 任意 Origin，等于允许任何站点带凭据跨域调用本接口。
+_cors_allow_origins = [o.strip() for o in os.getenv("CORS_ALLOW_ORIGINS", "").split(",") if o.strip()]
+if _cors_allow_origins:
+    # 通配符与携带凭据不能共存，否则等于完全放开
+    _cors_allow_credentials = "*" not in _cors_allow_origins
+    if not _cors_allow_credentials:
+        print("WARNING: CORS_ALLOW_ORIGINS 含 '*'，已强制关闭 allow_credentials。")
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=_cors_allow_origins,
+        allow_credentials=_cors_allow_credentials,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
 
 
 class ModelImageIn(BaseModel):
@@ -174,29 +208,43 @@ def get_password_hash(password):
 
 
 async def ensure_admin_user(db: AsyncSession):
-    """确保 admin 账号存在且密码为 admin"""
+    """确保 admin 账号存在。
+
+    只在账号不存在时创建，绝不重置已有密码——否则管理员改过的密码
+    会在每次重启后被打回默认值，等于留了个固定口令后门。
+    初始密码取自环境变量 ADMIN_PASSWORD，未设置则随机生成并打印一次。
+    """
     admin_username = "admin"
-    admin_password = "admin"
-    
+
     result = await db.execute(select(User).filter(User.username == admin_username))
     admin_user = result.scalars().first()
-    
-    if not admin_user:
-        hashed_password = get_password_hash(admin_password)
-        new_admin = User(
-            username=admin_username, 
-            hashed_password=hashed_password, 
-            role=UserRole.ADMIN, 
-            balance=1000000
-        )
-        db.add(new_admin)
-        await db.commit()
-        print(f"Default admin user created with password: {admin_password}")
+
+    if admin_user:
+        print("Admin user already exists, password left unchanged.")
+        return
+
+    admin_password = os.getenv("ADMIN_PASSWORD", "").strip()
+    generated = not admin_password
+    if generated:
+        admin_password = secrets.token_urlsafe(12)
+
+    new_admin = User(
+        username=admin_username,
+        hashed_password=get_password_hash(admin_password),
+        role=UserRole.ADMIN,
+        balance=1000000
+    )
+    db.add(new_admin)
+    await db.commit()
+
+    if generated:
+        print("=" * 78)
+        print(f"  已创建 admin 账号，随机初始密码: {admin_password}")
+        print("  该密码仅在本次启动日志中出现，请立即登录修改。")
+        print("  也可通过环境变量 ADMIN_PASSWORD 指定初始密码。")
+        print("=" * 78)
     else:
-        # 自动更新密码为默认的 admin (根据用户需求)
-        admin_user.hashed_password = get_password_hash(admin_password)
-        await db.commit()
-        print(f"Admin password has been reset to: {admin_password}")
+        print("Admin user created with password from ADMIN_PASSWORD.")
 
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
@@ -259,7 +307,7 @@ async def check_balance_and_deduct(request: Request, current_user: User = Depend
     cost = cost_entry.cost if cost_entry else 1
 
     # Use KeyedLock based on user ID to prevent race conditions
-    async with await user_locks(f"user_{current_user.id}"):
+    async with user_locks.acquire(f"user_{current_user.id}"):
         # Refresh user data to ensure up-to-date balance
         await db.refresh(current_user)
         
@@ -289,15 +337,31 @@ async def register(user_in: UserRegister, db: AsyncSession = Depends(get_db)):
     if not code:
         raise HTTPException(status_code=400, detail="Invalid or used registration code")
 
+    points = code.points
+
+    # 原子占用注册码：把 is_used 的判断和写入压进同一条 UPDATE。
+    # 之前是先 SELECT 再改属性，两个并发请求能拿同一个码各建一个账号。
+    claim = await db.execute(
+        update(RegistrationCode)
+        .where(RegistrationCode.id == code.id, RegistrationCode.is_used == False)
+        .values(is_used=True)
+    )
+    if claim.rowcount == 0:
+        await db.rollback()
+        raise HTTPException(status_code=400, detail="Invalid or used registration code")
+
     # Create user
     hashed_password = get_password_hash(user_in.password)
-    new_user = User(username=user_in.username, hashed_password=hashed_password, role=UserRole.USER, balance=code.points)
+    new_user = User(username=user_in.username, hashed_password=hashed_password, role=UserRole.USER, balance=points)
     db.add(new_user)
 
-    # Mark code as used
-    code.is_used = True
-    await db.commit()
-    await db.refresh(new_user)
+    try:
+        await db.commit()
+    except IntegrityError:
+        # username 唯一约束兜底：并发注册同名账号时，注册码占用一起回滚
+        await db.rollback()
+        raise HTTPException(status_code=400, detail="Username already registered")
+
     return {"message": "Registration successful"}
 
 
