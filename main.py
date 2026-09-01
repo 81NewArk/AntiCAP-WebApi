@@ -190,7 +190,8 @@ class NoStaticFilter(logging.Filter):
                 '"GET /login/index.txt?_rsc' in message or
                 '"GET /index.txt?' in message or
                 '"GET /register/' in message or
-                '"GET /swagger/' in message
+                '"GET /swagger/' in message or
+                '"GET /healthz ' in message  # 容器 HEALTHCHECK 探测，无需记录
         )
         return not is_static_request
 
@@ -469,6 +470,16 @@ async def set_endpoint_cost(cost_in: EndpointCostIn, current_user: User = Depend
     await db.refresh(cost_entry)
     return cost_entry
 
+
+
+@app.get("/healthz", include_in_schema=False)
+async def healthz():
+    """容器健康检查专用。不查库、不加载模型，仅表示进程能接请求。
+
+    必须定义在文件末尾的 app.mount("/") 之前，否则会被静态文件路由吃掉。
+    对应的访问日志由 NoStaticFilter 过滤，避免每 60 秒刷一条。
+    """
+    return {"status": "ok"}
 
 
 @app.get("/api/tokens/verification", summary="验证JWT", tags=["公共"])

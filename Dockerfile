@@ -90,8 +90,11 @@ USER appuser
 EXPOSE 6688
 VOLUME ["/data"]
 
-HEALTHCHECK --interval=30s --timeout=5s --start-period=90s --retries=3 \
-  CMD python -c "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:6688/docs', timeout=4).status==200 else 1)"
+# 探测 /healthz 而不是 /docs：不渲染 Swagger 页面，且其访问日志被应用过滤掉。
+# interval 放宽到 60s——每次探测都要起一个 python 解释器，SBC 上不必太频繁。
+# start-period 留 180s：首次启动若需下载模型，加载会比较久。
+HEALTHCHECK --interval=60s --timeout=5s --start-period=180s --retries=3 \
+  CMD python -c "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:6688/healthz', timeout=4).status==200 else 1)"
 
 ENTRYPOINT ["docker-entrypoint.sh"]
 CMD ["python", "main.py"]
