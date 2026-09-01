@@ -63,7 +63,7 @@ ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     PATH="/opt/venv/bin:$PATH" \
     MPLCONFIGDIR=/tmp/matplotlib \
-    YOLO_CONFIG_DIR=/tmp/ultralytics
+    YOLO_CONFIG_DIR=/tmp
 
 # libgomp1: torch / onnxruntime / scipy 的 OpenMP 运行时
 # libglib2.0-0: opencv headless 仍依赖
