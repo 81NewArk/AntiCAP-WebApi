@@ -1,0 +1,34 @@
+services:
+  anticap:
+    # 直接拉 CI 构建好的镜像：docker compose up -d
+    # 国内直连 ghcr.io 不稳定时，可用 .env 或环境变量换镜像源，例如：
+    #   IMAGE=ghcr.nju.edu.cn/ownercm/anticap-webapi:latest
+    # 也可指定单架构 tag：ghcr.io/ownercm/anticap-webapi:latest-arm64
+    image: ${IMAGE:-ghcr.io/ownercm/anticap-webapi:latest}
+    container_name: anticap-webapi
+    restart: unless-stopped
+    ports:
+      - "6688:6688"
+    volumes:
+      # 持久化 app.db 与 secret.key（容器内由 entrypoint 软链到 /app）
+      # 不挂这个卷的话，重启后账号数据丢失、JWT 密钥重置导致已发 token 全部失效
+      - anticap-data:/data
+    environment:
+      TZ: Asia/Shanghai
+      # admin 账号的初始密码，仅在数据库里还没有 admin 时生效。
+      # 不设置则首次启动随机生成并打印到容器日志（docker compose logs anticap）。
+      # 已存在的 admin 密码永远不会被启动流程改写。
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
+      # 跨域白名单，逗号分隔。内置前端与 API 同源，默认留空即可。
+      # 仅当前端部署在别的域名时才需要，例如 https://app.example.com
+      CORS_ALLOW_ORIGINS: ${CORS_ALLOW_ORIGINS:-}
+    security_opt:
+      - no-new-privileges:true
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+volumes:
+  anticap-data:

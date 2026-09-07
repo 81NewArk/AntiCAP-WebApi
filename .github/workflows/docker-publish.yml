@@ -1,0 +1,171 @@
+name: Build and Publish Docker image
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+concurrency:
+  group: docker-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ------------------------------------------------------------
+  # 每个架构在原生 runner 上并行构建，推送成带架构后缀的独立 tag
+  # （如 latest-arm64）。不用 push-by-digest，是为了避免架构镜像以
+  # untagged version 形式存在——那种镜像一旦在 GHCR 里被清理，
+  # 合成出来的 multi-arch index 就会悬空，pull 时报 manifest unknown。
+  #
+  # arm64 用 GitHub 免费的 ARM runner（公开仓库可用）。若仓库私有且
+  # 无付费额度，把 runner 换成 ubuntu-latest 并在 checkout 后加
+  # docker/setup-qemu-action@v3 走模拟（能跑通，但要 40 分钟以上）。
+  # ------------------------------------------------------------
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: linux/amd64
+            runner: ubuntu-latest
+          - platform: linux/arm64
+            runner: ubuntu-24.04-arm
+    runs-on: ${{ matrix.runner }}
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Prepare env
+        run: |
+          platform="${{ matrix.platform }}"
+          echo "ARCH=${platform##*/}" >> "$GITHUB_ENV"
+          # GHCR 只接受小写镜像名，github.repository 含大写字母
+          echo "IMAGE=${REGISTRY}/${IMAGE_NAME,,}" >> "$GITHUB_ENV"
+
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # torch + 预下载模型占用较多磁盘，先清掉 runner 上的预装 SDK
+      - name: Free disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc || true
+          df -h /
+
+      - name: Set up Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # PR 只构建不推送，避免外部 PR 拿到写包权限
+      - name: Log in to GHCR
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.IMAGE }}
+          flavor: |
+            latest=false
+            suffix=-${{ env.ARCH }}
+          tags: |
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=ref,event=branch
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=sha,format=short
+
+      - name: Build and push
+        id: build
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: ${{ matrix.platform }}
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          provenance: false
+          cache-from: type=gha,scope=${{ matrix.platform }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.platform }}
+
+      - name: Report image size
+        if: github.event_name != 'pull_request'
+        continue-on-error: true
+        run: |
+          docker buildx imagetools inspect "${IMAGE}@${{ steps.build.outputs.digest }}" \
+            --format '{{ json .Manifest }}' \
+          | jq -r '"[${{ matrix.platform }}] compressed size: \((([.layers[].size] | add) / 1048576 * 10 | round / 10)) MB"'
+
+  # ------------------------------------------------------------
+  # 把各架构的 tag 合成一个 multi-arch manifest list
+  # ------------------------------------------------------------
+  merge:
+    needs: build
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Prepare env
+        run: echo "IMAGE=${REGISTRY}/${IMAGE_NAME,,}" >> "$GITHUB_ENV"
+
+      - name: Set up Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.IMAGE }}
+          tags: |
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=ref,event=branch
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=sha,format=short
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create manifest list and push
+        env:
+          VERSION: ${{ steps.meta.outputs.version }}
+        run: |
+          docker buildx imagetools create \
+            $(jq -cr '.tags | map("-t " + .) | join(" ")' <<< "$DOCKER_METADATA_OUTPUT_JSON") \
+            "${IMAGE}:${VERSION}-amd64" \
+            "${IMAGE}:${VERSION}-arm64"
+
+      # 校验 index 里每个架构的子 manifest 真的能取到，
+      # 悬空 index 会在这里暴露，而不是等到用户 pull 时才报 manifest unknown
+      - name: Verify manifest list
+        env:
+          VERSION: ${{ steps.meta.outputs.version }}
+        run: |
+          docker buildx imagetools inspect "${IMAGE}:${VERSION}"
+          for arch in amd64 arm64; do
+            digest=$(docker buildx imagetools inspect "${IMAGE}:${VERSION}" --raw \
+              | jq -r --arg a "$arch" '.manifests[] | select(.platform.architecture == $a) | .digest')
+            if [ -z "$digest" ]; then
+              echo "::error::index 中缺少 linux/${arch}"; exit 1
+            fi
+            docker buildx imagetools inspect "${IMAGE}@${digest}" > /dev/null \
+              || { echo "::error::linux/${arch} 子 manifest 不可取: ${digest}"; exit 1; }
+            echo "linux/${arch} OK -> ${digest}"
+          done
